@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPS Arena | Vision & Markov AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #0d0618;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(236, 72, 153, 0.14) 0%, transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(245, 158, 11, 0.12) 0%, transparent 45%);
+            color: #fdf4ff;
+            overflow-x: hidden;
+        }
+        .mirror { transform: scaleX(-1); }
+        .arcade-card {
+            background: rgba(24, 11, 46, 0.85);
+            border: 1px solid rgba(232, 121, 249, 0.22);
+            backdrop-filter: blur(12px);
+        }
+        .amber-glow {
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.35);
+        }
+        .amber-glow:hover {
+            box-shadow: 0 0 38px rgba(245, 158, 11, 0.65);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            70% { transform: scale(1.1); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+        }
+        .pulse-badge::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background: #f59e0b;
+            animation: pulse-ring 2s infinite;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 md:p-6">
+
+    <!-- ========================================================= -->
+    <!-- 1. شاشة البداية (ثيم الساحة النارية والبنفسجي)            -->
+    <!-- ========================================================= -->
+    <div id="start-screen" class="max-w-lg w-full arcade-card rounded-[2rem] p-8 shadow-2xl border-t-4 border-t-amber-500">
+        <div class="flex justify-center gap-4 text-5xl mb-5">
+            <span class="bg-fuchsia-950/80 p-3 rounded-2xl border border-fuchsia-500/30">✊</span>
+            <span class="bg-amber-950/80 p-3 rounded-2xl border border-amber-500/30">✋</span>
+            <span class="bg-rose-950/80 p-3 rounded-2xl border border-rose-500/30">✌️</span>
+        </div>
+
+        <h1 class="text-3xl md:text-4xl font-black text-center bg-gradient-to-l from-amber-400 via-pink-500 to-fuchsia-400 bg-clip-text text-transparent mb-2">
+            ساحة التحدي الذكية
+        </h1>
+        <p class="text-center text-fuchsia-200/70 text-sm mb-7 leading-relaxed">
+            واجه خوارزمية <span class="text-amber-400 font-bold">Markov Chain</span> وجهاً لوجه عبر الكاميرا. الذكاء الاصطناعي يقرأ حركة يدك ويدرس نمط تفكيرك ليهزمك!
+        </p>
+
+        <!-- بطاقات اختيار الصعوبة -->
+        <div class="space-y-2.5 mb-7">
+            <p class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">اختر مستوى التحدي:</p>
+            
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border border-fuchsia-800/60 bg-fuchsia-950/40 cursor-pointer hover:border-amber-400 transition">
+                <div class="flex items-center gap-3">
+                    <input type="radio" name="start-difficulty" value="easy" class="w-4 h-4 accent-amber-500">
+                    <div>
+                        <p class="font-bold text-white text-sm">المستوى الأول: عشوائي</p>
+                        <p class="text-xs text-fuchsia-300/60">خصم مبتدئ يلعب بدون ذاكرة أو تحليل</p>
+                    </div>
+                </div>
+                <span class="text-lg">🎲</span>
+            </label>
+
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border border-fuchsia-800/60 bg-fuchsia-950/40 cursor-pointer hover:border-amber-400 transition">
+                <div class="flex items-center gap-3">
+                    <input type="radio" name="start-difficulty" value="medium" class="w-4 h-4 accent-amber-500">
+                    <div>
+                        <p class="font-bold text-white text-sm">المستوى الثاني: قارئ العادات</p>
+                        <p class="text-xs text-fuchsia-300/60">يكتشف أكثر حركة تكررها ويجهز لك الرد</p>
+                    </div>
+                </div>
+                <span class="text-lg">📊</span>
+            </label>
+
+            <label class="flex items-center justify-between p-3.5 rounded-2xl border-2 border-amber-500/80 bg-gradient-to-l from-amber-500/15 to-fuchsia-900/40 cursor-pointer transition">
+                <div class="flex items-center gap-3">
+                    <input type="radio" name="start-difficulty" value="hard" checked class="w-4 h-4 accent-amber-500">
+                    <div>
+                        <p class="font-bold text-amber-300 text-sm">المستوى الأسطوري: Markov AI</p>
+                        <p class="text-xs text-fuchsia-200/70">يتنبأ بحركتك القادمة بناءً على تسلسل جولاتك</p>
+                    </div>
+                </div>
+                <span class="text-lg">🔥</span>
+            </label>
+        </div>
+
+        <button onclick="enterGame()" class="w-full py-4 rounded-2xl font-black text-lg text-slate-950 bg-gradient-to-l from-amber-400 via-orange-400 to-pink-500 amber-glow transition transform hover:scale-[1.02] active:scale-95">
+            دخول الساحة وتشغيل الكاميرا ⚡
+        </button>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- 2. شاشة اللعب الرئيسية (تخطيط Arena أفقي جديد كلياً)       -->
+    <!-- ========================================================= -->
+    <div id="game-screen" class="hidden max-w-4xl w-full space-y-4">
+        
+        <!-- الشريط العلوي: العنوان + لوحة النقاط المدمجة + التحكم -->
+        <div class="arcade-card rounded-3xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-pink-600 flex items-center justify-center text-2xl shadow-lg">
+                    ⚔️
+                </div>
+                <div>
+                    <h2 class="font-black text-lg text-white leading-tight">RPS Vision Arena</h2>
+                    <span id="camera-status" class="text-xs text-amber-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> جاري تهيئة العدسة...
+                    </span>
+                </div>
+            </div>
+
+            <!-- لوحة النتائج في المنتصف -->
+            <div class="flex items-center gap-4 bg-[#120724] px-6 py-2.5 rounded-2xl border border-fuchsia-500/30">
+                <div class="text-center">
+                    <span class="block text-[11px] text-amber-300 font-bold">أنت</span>
+                    <span id="player-score" class="text-2xl font-black text-white">0</span>
+                </div>
+                <div class="text-center px-3 border-x border-fuchsia-800/60">
+                    <span class="block text-[11px] text-fuchsia-300/60">تعادل</span>
+                    <span id="draw-score" class="text-xl font-bold text-fuchsia-300/80">0</span>
+                </div>
+                <div class="text-center">
+                    <span class="block text-[11px] text-pink-400 font-bold">الذكاء</span>
+                    <span id="ai-score" class="text-2xl font-black text-white">0</span>
+                </div>
+            </div>
+
+            <!-- أدوات التحكم -->
+            <div class="flex items-center gap-2">
+                <select id="difficulty" class="bg-[#120724] border border-fuchsia-700/60 rounded-xl px-3 py-2 text-xs font-bold text-amber-300 focus:outline-none focus:border-amber-400">
+                    <option value="easy">🎲 عشوائي</option>
+                    <option value="medium">📊 قارئ العادات</option>
+                    <option value="hard">🔥 Markov AI</option>
+                </select>
+                <button onclick="resetGame()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-fuchsia-950 hover:bg-fuchsia-900 text-fuchsia-200 border border-fuchsia-700/50 transition">
+                    تصفير ↺
+                </button>
+            </div>
+        </div>
+
+        <!-- منطقة الكاميرا الرئيسية في الوسط -->
+        <div class="arcade-card rounded-3xl p-3 md:p-4 shadow-2xl relative">
+            <!-- شريط الحالة الحي فوق الفيديو -->
+            <div class="flex justify-between items-center mb-3 px-2">
+                <div class="flex items-center gap-2 bg-[#120724] px-4 py-1.5 rounded-full border border-amber-500/30">
+                    <span class="text-xs text-fuchsia-200/70">إشارة يدك الآن:</span>
+                    <strong id="live-gesture" class="text-sm text-amber-400 font-black">بانتظار الكاميرا...</strong>
+                </div>
+
+                <button id="play-btn" onclick="startRound()" class="px-6 py-2.5 rounded-full font-black text-sm text-slate-950 bg-gradient-to-l from-amber-400 to-pink-500 amber-glow transition transform hover:scale-105 active:scale-95">
+                    بدء الجولة (3 ثواني) 🎯
+                </button>
+            </div>
+
+            <!-- شاشة العرض -->
+            <div class="relative w-full aspect-video max-h-[430px] bg-[#090312] rounded-2xl overflow-hidden border-2 border-fuchsia-600/30">
+                <video id="input_video" class="hidden"></video>
+                <canvas id="output_canvas" class="w-full h-full object-cover mirror"></canvas>
+                
+                <!-- طبقة العد التنازلي والنتيجة -->
+                <div id="overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-[#0d0618]/55 transition-all duration-300">
+                    <p id="countdown-text" class="text-8xl md:text-9xl font-black text-amber-400 drop-shadow-[0_0_30px_rgba(245,158,11,0.9)] hidden">3</p>
+                    
+                    <!-- بطاقة النتيجة المنبثقة -->
+                    <div id="result-box" class="text-center p-6 md:p-8 rounded-3xl bg-[#16092b]/95 border-2 border-amber-500/50 shadow-2xl hidden max-w-md w-11/12">
+                        <p id="winner-banner" class="text-3xl font-black mb-5 text-amber-400">فوز مستحق!</p>
+                        <div class="grid grid-cols-3 items-center gap-2 bg-[#0d0618] p-4 rounded-2xl border border-fuchsia-800/50">
+                            <div>
+                                <p class="text-xs text-fuchsia-300/70 mb-1">حركتك</p>
+                                <p id="player-move-display" class="text-xl md:text-2xl font-black text-white">✊ حجر</p>
+                            </div>
+                            <div class="text-pink-500 font-black text-xl">VS</div>
+                            <div>
+                                <p class="text-xs text-fuchsia-300/70 mb-1">حركة الخصم</p>
+                                <p id="ai-move-display" class="text-xl md:text-2xl font-black text-amber-400">✋ ورقة</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p id="ready-hint" class="text-white text-sm md:text-base font-bold bg-[#16092b]/90 px-6 py-3 rounded-full border border-amber-500/40 shadow-lg">
+                        أظهر يدك للكاميرا واضغط على "بدء الجولة" في الأعلى 👆
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- الشريط السفلي: تحليل عقل الذكاء الاصطناعي + سجل الحركات -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- تحليل الخوارزمية (ياخذ عمودين) -->
+            <div class="md:col-span-2 arcade-card rounded-2xl p-4 border-r-4 border-r-amber-500">
+                <p class="text-amber-400 font-black text-xs mb-1.5 flex items-center gap-1.5">
+                    <span>🧠</span> تفكير الذكاء الاصطناعي المباشر:
+                </p>
+                <p id="ai-thought" class="text-fuchsia-100/90 text-sm leading-relaxed">
+                    الساحة جاهزة! ابدأ أول جولة حتى أبدأ بتحليل نمط حركاتك وبناء مصفوفة الاحتمالات...
+                </p>
+            </div>
+
+            <!-- آخر الحركات (ياخذ عمود واحد) -->
+            <div class="arcade-card rounded-2xl p-4">
+                <p class="text-pink-400 font-black text-xs mb-2">📜 ذاكرة حركاتك الأخيرة:</p>
+                <div id="history-badges" class="flex flex-wrap gap-1.5">
+                    <span class="text-xs text-fuchsia-400/50">لا توجد جولات مسجلة بعد</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let cameraStarted = false;
+
+        function enterGame() {
+            const selectedDiff = document.querySelector('input[name="start-difficulty"]:checked').value;
+            document.getElementById("difficulty").value = selectedDiff;
+
+            document.getElementById("start-screen").classList.add("hidden");
+            document.getElementById("game-screen").classList.remove("hidden");
+
+            if (!cameraStarted) {
+                camera.start();
+                cameraStarted = true;
+            }
+        }
+
+        let scores = { player: 0, ai: 0, draw: 0 };
+        let currentDetectedGesture = "Unknown";
+        let isPlayingRound = false;
+
+        let transitionMatrix = {
+            "Rock": { "Rock": 1, "Paper": 1, "Scissors": 1 },
+            "Paper": { "Rock": 1, "Paper": 1, "Scissors": 1 },
+            "Scissors": { "Rock": 1, "Paper": 1, "Scissors": 1 }
+        };
+        let moveHistory = [];
+
+        const moveNames = {
+            "Rock": "✊ حجر",
+            "Paper": "✋ ورقة",
+            "Scissors": "✌️ مقص",
+            "Unknown": "❓ غير واضح"
+        };
+
+        const counterMove = {
+            "Rock": "Paper",
+            "Paper": "Scissors",
+            "Scissors": "Rock"
+        };
+
+        function getAIMove() {
+            const difficulty = document.getElementById("difficulty").value;
+            const choices = ["Rock", "Paper", "Scissors"];
+            const thoughtEl = document.getElementById("ai-thought");
+
+            if (difficulty === "easy" || moveHistory.length === 0) {
+                thoughtEl.innerText = "الوضع العشوائي: اخترت حركتي بالصدفة البحتة دون النظر إلى سجل جولاتك.";
+                return choices[Math.floor(Math.random() * 3)];
+            }
+
+            if (difficulty === "medium") {
+                let counts = { "Rock": 0, "Paper": 0, "Scissors": 0 };
+                moveHistory.forEach(m => counts[m]++);
+                let mostFrequent = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+                thoughtEl.innerText = `قراءة العادات: لاحظت أنك تفضل حركة (${moveNames[mostFrequent]}) أكثر من غيرها، لذا اخترت الحركة المضادة لها!`;
+                return counterMove[mostFrequent];
+            }
+
+            if (difficulty === "hard") {
+                let lastMove = moveHistory[moveHistory.length - 1];
+                let transitions = transitionMatrix[lastMove];
+                let predictedNext = Object.keys(transitions).reduce((a, b) => transitions[a] > transitions[b] ? a : b);
+                
+                let total = transitions.Rock + transitions.Paper + transitions.Scissors;
+                let confidence = Math.round((transitions[predictedNext] / total) * 100);
+
+                thoughtEl.innerText = `توقع Markov: لأن حركتك السابقة كانت (${moveNames[lastMove]})، توقعت بنسبة ${confidence}% أنك ستلعب (${moveNames[predictedNext]}) فجهزت (${moveNames[counterMove[predictedNext]]}) للرد عليك!`;
+                return counterMove[predictedNext];
+            }
+        }
+
+        function updateMemory(newMove) {
+            if (moveHistory.length > 0) {
+                let prevMove = moveHistory[moveHistory.length - 1];
+                transitionMatrix[prevMove][newMove] += 1;
+            }
+            moveHistory.push(newMove);
+
+            const badgesContainer = document.getElementById("history-badges");
+            badgesContainer.innerHTML = "";
+            moveHistory.slice(-6).forEach(m => {
+                const span = document.createElement("span");
+                span.className = "text-xs bg-[#120724] border border-amber-500/30 px-2.5 py-1 rounded-lg text-amber-200 font-bold";
+                span.innerText = moveNames[m];
+                badgesContainer.appendChild(span);
+            });
+        }
+
+        function startRound() {
+            if (isPlayingRound) return;
+            isPlayingRound = true;
+
+            const btn = document.getElementById("play-btn");
+            const overlay = document.getElementById("overlay");
+            const readyHint = document.getElementById("ready-hint");
+            const resultBox = document.getElementById("result-box");
+            const countdownEl = document.getElementById("countdown-text");
+
+            btn.disabled = true;
+            btn.classList.add("opacity-50", "cursor-not-allowed");
+            overlay.classList.remove("bg-[#0d0618]/55");
+            readyHint.classList.add("hidden");
+            resultBox.classList.add("hidden");
+            countdownEl.classList.remove("hidden");
+
+            let count = 3;
+            countdownEl.innerText = count;
+
+            let timer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownEl.innerText = count;
+                } else {
+                    clearInterval(timer);
+                    countdownEl.classList.add("hidden");
+                    finishRound();
+                }
+            }, 800);
+        }
+
+        function finishRound() {
+            const playerMove = currentDetectedGesture;
+            const aiMove = getAIMove();
+
+            const overlay = document.getElementById("overlay");
+            const resultBox = document.getElementById("result-box");
+            const winnerBanner = document.getElementById("winner-banner");
+            const btn = document.getElementById("play-btn");
+
+            overlay.classList.add("bg-[#0d0618]/55");
+            resultBox.classList.remove("hidden");
+
+            document.getElementById("player-move-display").innerText = moveNames[playerMove];
+            document.getElementById("ai-move-display").innerText = moveNames[aiMove];
+
+            if (playerMove === "Unknown") {
+                winnerBanner.innerText = "⚠️ اليد غير واضحة! قرّب يدك للكاميرا";
+                winnerBanner.className = "text-xl font-black mb-4 text-amber-400";
+            } else {
+                updateMemory(playerMove);
+
+                if (playerMove === aiMove) {
+                    scores.draw++;
+                    winnerBanner.innerText = "🤝 تعادل في هذه الجولة!";
+                    winnerBanner.className = "text-2xl font-black mb-4 text-fuchsia-200";
+                } else if (
+                    (playerMove === "Rock" && aiMove === "Scissors") ||
+                    (playerMove === "Paper" && aiMove === "Rock") ||
+                    (playerMove === "Scissors" && aiMove === "Paper")
+                ) {
+                    scores.player++;
+                    winnerBanner.innerText = "🏆 أنت الفائز!";
+                    winnerBanner.className = "text-3xl font-black mb-4 text-amber-400";
+                } else {
+                    scores.ai++;
+                    winnerBanner.innerText = "🤖 الذكاء الاصطناعي تفوق عليك!";
+                    winnerBanner.className = "text-2xl font-black mb-4 text-pink-500";
+                }
+            }
+
+            document.getElementById("player-score").innerText = scores.player;
+            document.getElementById("ai-score").innerText = scores.ai;
+            document.getElementById("draw-score").innerText = scores.draw;
+
+            btn.disabled = false;
+            btn.classList.remove("opacity-50", "cursor-not-allowed");
+            btn.innerText = "جولة جديدة ⚡";
+            isPlayingRound = false;
+        }
+
+        function resetGame() {
+            scores = { player: 0, ai: 0, draw: 0 };
+            moveHistory = [];
+            transitionMatrix = {
+                "Rock": { "Rock": 1, "Paper": 1, "Scissors": 1 },
+                "Paper": { "Rock": 1, "Paper": 1, "Scissors": 1 },
+                "Scissors": { "Rock": 1, "Paper": 1, "Scissors": 1 }
+            };
+            document.getElementById("player-score").innerText = "0";
+            document.getElementById("ai-score").innerText = "0";
+            document.getElementById("draw-score").innerText = "0";
+            document.getElementById("history-badges").innerHTML = '<span class="text-xs text-fuchsia-400/50">لا توجد جولات مسجلة بعد</span>';
+            document.getElementById("ai-thought").innerText = "تم تصفير الذاكرة! الذكاء الاصطناعي يبدأ دراسة أسلوبك من الصفر...";
+            document.getElementById("result-box").classList.add("hidden");
+            document.getElementById("ready-hint").classList.remove("hidden");
+        }
+
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+
+        function classifyHand(landmarks) {
+            let fingersUp = 0;
+            let indexUp = landmarks[8].y < landmarks[6].y;
+            let middleUp = landmarks[12].y < landmarks[10].y;
+            let ringUp = landmarks[16].y < landmarks[14].y;
+            let pinkyUp = landmarks[20].y < landmarks[18].y;
+
+            if (indexUp) fingersUp++;
+            if (middleUp) fingersUp++;
+            if (ringUp) fingersUp++;
+            if (pinkyUp) fingersUp++;
+
+            if (fingersUp === 0) return "Rock";
+            if (fingersUp >= 4) return "Paper";
+            if (indexUp && middleUp && !ringUp && !pinkyUp) return "Scissors";
+            return "Unknown";
+        }
+
+        function onResults(results) {
+            const statusEl = document.getElementById("camera-status");
+            if (statusEl.innerText.includes("تهيئة")) {
+                statusEl.className = "text-xs text-emerald-400 flex items-center gap-1.5 font-bold";
+                statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> البث المباشر نشط';
+            }
+
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                // خطوط تتبع بلون ذهبي ووردي نيون لتناسب الثيم الجديد
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#f59e0b', lineWidth: 3});
+                drawLandmarks(canvasCtx, landmarks, {color: '#ec4899', lineWidth: 1, radius: 4});
+                currentDetectedGesture = classifyHand(landmarks);
+            } else {
+                currentDetectedGesture = "Unknown";
+            }
+
+            document.getElementById("live-gesture").innerText = moveNames[currentDetectedGesture];
+            canvasCtx.restore();
+        }
+
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+    </script>
+</body>
+</html>
